@@ -1,20 +1,28 @@
 # CHOLIS School360 Lite — one container that runs the whole app.
-# IBM Cloud Code Engine uses this file to build and start the app.
+# The app's code is packed in school360-source.bundle (a zip file).
+
+# 0) Unpack the app's code
+FROM node:20-alpine AS source
+WORKDIR /src
+COPY school360-source.bundle ./
+RUN (command -v unzip >/dev/null 2>&1 || apk add --no-cache unzip) \
+ && unzip -q school360-source.bundle \
+ && rm school360-source.bundle
 
 # 1) Build the website (React)
 FROM node:20-alpine AS client-build
 WORKDIR /app/client
-COPY client/package*.json ./
+COPY --from=source /src/client/package*.json ./
 RUN npm install --no-audit --no-fund
-COPY client/ ./
+COPY --from=source /src/client/ ./
 RUN npm run build
 
 # 2) Build the server (Express)
 FROM node:20-alpine AS server-build
 WORKDIR /app/server
-COPY server/package*.json ./
+COPY --from=source /src/server/package*.json ./
 RUN npm install --no-audit --no-fund
-COPY server/ ./
+COPY --from=source /src/server/ ./
 RUN npm run build && npm prune --omit=dev
 
 # 3) Final, small image: server + built website
