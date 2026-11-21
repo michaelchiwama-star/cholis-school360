@@ -1,92 +1,75 @@
-# CHOLIS School360 Lite (version 1.1, cloud-ready)
+# CHOLIS School360 Lite
 
-A demonstration app for Center for Holistic Schools Global (CHOLIS). Teachers request learner support, CHOLIS professionals coordinate follow-up, school leaders see totals only, and parents use a public resource hub.
+**Built with IBM Bob and IBM watsonx Orchestrate · IBM SkillsBuild AI Experiential Learning Lab**
 
-**All schools, learners and staff in this app are fictional. Do not enter real information.**
+School360 Lite helps a school get every struggling learner the right support at the right time. It connects teachers, the school's Counselling and Learner Support Department, head teachers, parents and the Center for Holistic Schools Global (CHOLIS) in one simple web app, built for Zambian schools, phones and low bandwidth.
 
-## What changed in version 1.1
+- **Live demo:** https://cholis-school360.onrender.com
+- **Organisation:** Center for Holistic Schools Global (CHOLIS), Lusaka, Zambia · https://allholisticschools.org
 
-| Change | Why |
+> **All schools, learners and staff in this app are fictional. Do not enter real information.**
+
+## How IBM Bob was used
+
+The first version of this application was created with **IBM Bob**, working from a detailed product brief:
+
+- Bob inspected the development environment and chose a low-cost stack: React and TypeScript (Vite) for the web app, an Express and TypeScript server, and a SQLite database, with no paid services.
+- Bob designed the architecture and created the application files: the five role experiences (teacher, professional, school leader, parent, CHOLIS administrator), the database, role-based access, school-level data isolation, the leadership dashboard with confidential details hidden, the parent resource hub, the Alliance membership forms and a fictional Zambian demo school.
+- Bob wrote and ran 25 acceptance tests, diagnosed the failures and fixed them until all 25 passed.
+- Bob documented what was simulated, left a clear integration point for the watsonx Orchestrate agent, and listed next steps.
+
+This architecture, data model and connected workflow remain the foundation of the app. After my IBM Bob lab access ended, I extended Bob's codebase with AI coding assistance (Claude by Anthropic): secure sign-in, the live watsonx Orchestrate connection, routing to the school's own department, the CHOLIS inbox, notifications and the parent enquiry routing.
+
+## The AI agent: CHOLIS Teacher Support Assistant
+
+- Built in **IBM watsonx Orchestrate** and connected live to the app's teacher and department portals.
+- Answers are grounded (RAG) in approved documents: the CHOLIS Classroom Support Guide, the CHOLI-S Ubuntu programmes and the Ministry of Education Catch Up (Teaching at the Right Level) teacher's guides.
+- It gives general classroom strategies only. It never diagnoses learners or makes safeguarding decisions, and points safeguarding concerns to the school's Child Protection Focal Person.
+- The server calls Orchestrate with an IBM Cloud API key held as a private setting, never in the code. Learner names are never sent.
+
+## What the app does
+
+| Who | What they can do |
 |---|---|
-| Secure sign-in: the server issues a signed session after login and checks it on every request | Before, the server trusted whatever the browser *said* about who you were, so anyone online could pretend to be an administrator |
-| Passwords stored as secure hashes; 10 wrong guesses blocks sign-in for 15 minutes | Basic protection for a public link |
-| Demo password can be changed for the online version and is then hidden from the login page | So only people you invite can sign in |
-| Data is now actually saved to disk | Version 1.0 kept data in memory only, so it was lost when the server stopped |
-| "Demonstration version · fictional data" banner on every page | So no visitor mistakes it for a live service |
-| One service runs the whole app, with a `Dockerfile` | Needed for IBM Cloud Code Engine |
-| Length limits on all form fields; school checks on assignments and activity history | Stops misuse of the public forms and keeps each school's data separate |
+| Teacher | Submit a support request using a learner reference ID (never a name), track its status, use CHOLIS-approved classroom tips, ask the AI assistant |
+| School Counsellor / Learner Support Coordinator | Receive requests routed to them automatically, update status, ask CHOLIS for extra help, respond to parent enquiries, use the AI assistant |
+| Head teacher | See totals, response times, trends and a printable monthly report, with no private case details |
+| Parent (no account) | Read practical tips and ask for support, choosing their child's school department or CHOLIS |
+| CHOLIS Administrator | Handle requests from schools in the CHOLIS inbox, consultation and membership enquiries, and parent enquiries sent to CHOLIS |
 
-The pages, workflow and design are unchanged.
+## Repository layout
 
-## Run on your own computer (same as before)
-
-```powershell
-cd server
-npm install
-npm run dev          # http://localhost:3001
-
-# in a second window
-cd client
-npm install
-npm run dev          # open http://localhost:5173
-```
-
-Or run `start.ps1`. Locally the demo password is still `demo1234`, shown on the login page.
-
-| Role | Username |
+| Path | What it is |
 |---|---|
-| Teacher (Mr. Chanda Mulenga) | `teacher1` |
-| Teacher (Ms. Thandiwe Banda) | `teacher2` |
-| CHOLIS Professional (Ms. Yvonne Sikaonga) | `professional1` |
-| School Leader (Mrs. Nkandu Phiri) | `leader1` |
-| CHOLIS Administrator (Mr. Kelvin Zulu) | `admin1` |
+| `client/` | The web app (React, TypeScript, Vite) |
+| `server/` | The server and database (Express, TypeScript, SQLite via sql.js) |
+| `school360-source.bundle` | A zip of `client/` and `server/`. The live site is built from this file by the `Dockerfile` |
+| `Dockerfile` | Builds and runs the whole app in one container (used by Render) |
+| `start.ps1` | Starts the app on a Windows computer |
 
-Parent Hub (no sign-in): http://localhost:5173/parent
+## Run it on your own computer
 
-## Put it online with IBM Cloud Code Engine
-
-In IBM Cloud, open **Cloud Shell** (the terminal icon at the top right of the console). Upload this zip with the Cloud Shell upload button, then run:
+Needs Node.js 20 or later.
 
 ```bash
-unzip -o CHOLIS_School360_v1.1_cloud.zip -d school360 && cd school360
-ibmcloud target -r eu-de -g Default
-ibmcloud ce project create --name cholis-school360
-ibmcloud ce secret create --name school360-settings \
-  --from-literal DEMO_PASSWORD='CHOOSE-A-PASSWORD' \
-  --from-literal SESSION_SECRET="$(openssl rand -hex 32)"
-ibmcloud ce application create --name school360 \
-  --build-source . --strategy dockerfile \
-  --port 8080 --min-scale 0 --max-scale 1 \
-  --env-from-secret school360-settings
+cd server && npm install && npm run dev     # server on http://localhost:3001
+cd client && npm install && npm run dev     # open http://localhost:5173
 ```
 
-The last command builds the app (a few minutes) and prints its public web address.
+Locally, every demo account uses the password `demo1234`. The accounts are listed on the sign-in page.
 
-**Important settings**
-- `--max-scale 1` keeps exactly one copy of the app running, so everyone sees the same data. Do not raise it.
-- `--min-scale 0` lets the app sleep when nobody is using it, which saves your cloud allowance. When it wakes, the demo school is reset to its starting data. That is intentional for a demonstration.
+## Settings (for hosting)
 
-**To publish changes later:** upload the new zip, unzip it, then run
-`ibmcloud ce application update --name school360 --build-source . --strategy dockerfile`
+| Setting | Purpose |
+|---|---|
+| `DEMO_PASSWORD` | Password for all demo accounts (hidden on the sign-in page when set) |
+| `SESSION_SECRET` | Signs sign-in sessions; keep private |
+| `WXO_INSTANCE_URL`, `WXO_API_KEY`, `WXO_AGENT_ID` | Connect the watsonx Orchestrate agent |
+| `BREVO_API_KEY`, `NOTIFY_FROM_EMAIL`, `CHOLIS_NOTIFY_EMAILS` | Optional email alerts (alerts never contain learner details) |
 
-## Settings
+## Responsible use
 
-| Setting | Purpose | Default |
-|---|---|---|
-| `DEMO_PASSWORD` | Password for all demo accounts. When set, it is hidden on the login page. | `demo1234`, shown |
-| `SESSION_SECRET` | Signs sign-in sessions. Keep it private. | Random at each start |
-| `SESSION_HOURS` | How long a sign-in lasts | `8` |
-| `PORT` | Web port | `3001` locally, `8080` in the container |
-
-## Still simulated or not production-ready
-
-- The **AI Teacher Support Assistant** gives demonstration answers. It is not yet connected to IBM watsonx Orchestrate.
-- Accounts are **shared demo accounts**. Real schools would need individual accounts and password resets.
-- Online data is **temporary** (reset when the app sleeps or restarts). Real use needs a managed database and backups.
-- Before any real learner information is used: Zambia Data Protection Act review, consent processes, and a security review.
-
-## Tests
-
-`tests/security-and-workflow-tests.sh` checks 28 things, including that fake identities are refused, schools cannot see each other's data, and school leaders cannot read teachers' notes. Run it against a running copy: `BASE=http://localhost:8080 PW=yourpassword bash tests/security-and-workflow-tests.sh`.
-
-The older `acceptance-tests.ps1` from version 1.0 is not included, because it relied on the insecure sign-in method that version 1.1 removes.
+- Reference IDs only; no learner names, diagnoses or safeguarding details in forms, AI questions or alerts.
+- Each school sees only its own data. Head teachers see totals only, never case details. (Hiding very small counts, so no learner can be identified, is planned before real use.)
+- Qualified people make every decision about a learner; the AI gives general guidance only.
+- Before real learner information is used: individual accounts, a managed database with backups, a Zambia Data Protection Act review and a security review.
